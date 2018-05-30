@@ -1,0 +1,290 @@
+# coding: utf8
+*** Settings ***
+
+Library     ImapLibrary
+#Library     ./lib/ImageRecognitionLibrary.py
+
+Resource    resources.robot
+
+Suite Setup     Setup Suite
+Test Setup  Open Browser On Main Page
+Test Teardown   Close browser
+
+*** Variables ***
+${PRODUCT_XPATH}        //div[contains(@class, 'masonry-brick')]
+
+*** Test Cases ***
+
+1018 Find product for the marketplace with search function
+    [tags]   Basic
+    Search Product   Testituote 3
+    ${item_count}    Get Matching Xpath Count   //div[contains(@class, 'saleItemsList')]/div
+    Evaluate    ${item_count} == 1
+
+1019 Buy one product without options and without pre-login and pre-registration
+    [tags]   Basic
+    Search Product   Testituote 1 - Test product 1
+    Open Product Page   Testituote 1 - Test product 1
+    Add Product To Cart
+    Make Order   ${USER_FULL_NAME}     ${USER_EMAIL}      ${USER_ADDRESS}    ${USER_ZIP}   ${USER_CITY}    ${USER_COUNTRY}   ${USER_PHONE}
+    #Wait For Email     ${USER_EMAIL}   ${USER_PASSWORD}    TILAUS
+    Enter Password After Order      ${USER_PASSWORD}
+
+1021 Buy one product without options and without pre-login
+    [tags]   Basic
+    Search Product   Testituote 1 - Test product 1
+    Open Product Page   Testituote 1 - Test product 1
+    Add Product To Cart
+    Make Order   ${USER_FULL_NAME}     ${USER_EMAIL}      ${USER_ADDRESS}    ${USER_ZIP}   ${USER_CITY}    ${USER_COUNTRY}   ${USER_PHONE}
+    #Wait For Email     ${USER_EMAIL}   ${USER_PASSWORD}    TILAUS
+    Enter Password After Order      ${USER_PASSWORD}
+
+1031 Buy One Product With Option
+    [tags]   Basic
+    Search Product   Testituote 2 - Test product 2
+    Open Product Page   Testituote 2 - Test product 2
+    Select From List By Label   xpath=//div[@class="hidden-sm-down"]//select[@data-ng-model="cartItem.getItem().selectedOptionIds[optionGroup.id]"]      Musta lila valkoinen
+    Add Product To Cart
+    Make Order   ${USER_FULL_NAME}     ${USER_EMAIL}      ${USER_ADDRESS}    ${USER_ZIP}   ${USER_CITY}    ${USER_COUNTRY}   ${USER_PHONE}
+    #Wait For Email     ${USER_EMAIL}   ${USER_PASSWORD}    TILAUS
+    Enter Password After Order      ${USER_PASSWORD}
+
+### Jounin omia lisäilyjä
+1041 Buy 2 products: one without options and one with options
+    [tags]   Basic
+    Search Product   Testituote 1 - Test product 1
+    Open Product Page   Testituote 1 - Test product 1
+    Add Product To Cart
+	Search Products   Testituote 2 - Test product 2
+    Open Product Page   Testituote 2 - Test product 2
+	Select From List By Label   xpath=//div[@class="hidden-sm-down"]//select[@data-ng-model="cartItem.getItem().selectedOptionIds[optionGroup.id]"]      Musta lila valkoinen
+    Add Product To Cart
+    Make Order   ${USER_FULL_NAME}     ${USER_EMAIL}      ${USER_ADDRESS}    ${USER_ZIP}   ${USER_CITY}    ${USER_COUNTRY}   ${USER_PHONE}
+    #Wait For Email     ${USER_EMAIL}   ${USER_PASSWORD}    TILAUS
+    Enter Password After Order      ${USER_PASSWORD}
+
+1051 Buy 2 products; one product without and one with options from two different sellers
+	[tags]   Basic
+    Search Product   Testituote 1 - Test product 1
+    Open Product Page   Testituote 1 - Test product 1
+    Add Product To Cart
+	Search Products   Testituote 4
+    Open Product Page   Testituote 4
+	Select From List By Label   xpath=//div[@class="hidden-sm-down"]//select[@data-ng-model="cartItem.getItem().selectedOptionIds[optionGroup.id]"]      Punainen
+    Add Product To Cart
+	Make Order   ${USER_FULL_NAME}     ${USER_EMAIL}      ${USER_ADDRESS}    ${USER_ZIP}   ${USER_CITY}    ${USER_COUNTRY}   ${USER_PHONE}
+    #Wait For Email     ${USER_EMAIL}   ${USER_PASSWORD}    TILAUS
+    Enter Password After Order      ${USER_PASSWORD}
+	
+9999 Uusia kokeita
+	[tags]   Basic
+	Click Element   	xpath=${NAV_XPATH}//div[@id="loginModal"]//h5
+
+	### Wait Until Element Is Visible   xpath=//div[contains(@class, 'cartWrap halfOpen')]//i[contains(@class, 'fa-credit-card')]
+###
+
+*** Keywords ***
+
+Enter Password After Order
+    [Arguments]     ${password}
+    Input Text   xpath=//input[@data-ng-model="main.registerData.password"]   ${password}
+    Click Element   xpath=//button[@data-nice-action-btn-name="registerFromOrderComplete"]
+    Wait Until Element Is Visible   xpath=//div[@data-notification-container="orderCompleteMessages"]
+
+Search Product
+    [Arguments]     ${name}
+    Click element   link=SELAA TUOTTEITA
+    #Wait For Angular
+    Wait Until Element Is Visible    css=input[placeholder='Hae']
+    Input Text      css=input[placeholder='Hae']    ${name}
+
+### Jounin lisäys
+Search Products
+    [Arguments]     ${name}
+    Click element   link=Tuotteet
+    #Wait For Angular
+    Wait Until Element Is Visible    css=input[placeholder='Hae']
+    Input Text      css=input[placeholder='Hae']    ${name}
+
+###
+	
+Open Product Page
+    [arguments]     ${target_product}
+    ${product_count} =   Get Matching Xpath Count   ${PRODUCT_XPATH}
+    ${is_target_product} =      Set Variable      False
+
+    :For    ${index}     in range   1     ${product_count} + 1
+    \   ${product_name} =    Get Web Element    xpath=${PRODUCT_XPATH}[${index}]/a/div[@class="content"]/div[contains(@class, "line")][1]
+    \   ${name} =   Get Text    ${product_name}
+    \   ${is_target_product} =    Run Keyword And Return Status   Should Be Equal As Strings   ${name}     ${target_product}     ignore_case=True
+    \   Run Keyword If  ${is_target_product}    Run Keywords    Click Element   xpath=${PRODUCT_XPATH}[${index}]      AND     Exit For Loop
+
+    Run Keyword If  not ${is_target_product}     Fail     msg=Target product was not found
+
+    Wait Until Product Page Is Loaded
+    #Wait For Angular
+    #${item_price}=   Get Text    css=p[class*='currentPrice']
+    #${item_price}=      Strip Price     ${item_price}
+    #${item_name}=   Get Text    xpath=//div[@class='headerHeadingWrap']//h1
+    #${item_url}=   Get Location
+    #Set Test Variable   ${item_price}     ${item_price}
+    #Set Test Variable   ${item_name}     ${item_name}
+    #Set Test Variable   ${item_url}     ${item_url}
+
+Add Product To Cart
+    ${product_count} =      Get Cart Product Count
+    Click Element   xpath=//div[@class="hidden-sm-down"]//button[@type='submit']
+
+Make Order
+    [Arguments]     ${name}     ${email}    ${address}  ${postCode}     ${city}     ${country}      ${phone}
+    Click Element   xpath=${NAV_XPATH}//button[contains(@class, 'cartBtn')]
+    Wait Until Element Is Visible   xpath=//div[contains(@class, 'cartWrap halfOpen')]//i[contains(@class, 'fa-credit-card')]
+    Click Element   xpath=//div[contains(@class, 'cartWrap halfOpen')]//i[contains(@class, 'fa-credit-card')]
+
+    Wait Until Element Is Visible   xpath=//input[@data-ng-model="main.billDetails.name"]
+    Input Text  xpath=//input[@data-ng-model="main.billDetails.name"]     ${name}
+    Input Text  xpath=//input[@data-ng-model="main.billDetails.email"]    ${email}
+    Input Text  xpath=//input[@data-ng-model="main.billDetails.address"]     ${address}
+    Input Text  xpath=//input[@data-ng-model="main.billDetails.zipcode"]    ${postCode}
+    Input Text  xpath=//input[@data-ng-model="main.billDetails.city"]    ${city}
+    Input Text  css=input[class*="countrySelectorInput"]     ${country}
+    Input Text  xpath=//input[@data-ng-model="main.billDetails.phone"]     ${phone}
+    Select Checkbox     xpath=//input[@data-ng-model="main.termsAccepted"]
+    Click Element   xpath=//button[@data-ng-click="cart.selectPaymentMethod('none')"]
+    Click Element   xpath=//span[@data-ng-hide="ngCart.freeOrder()"]
+    Wait Until Element Is Visible   xpath=//div[contains(@class, 'alert alert-success')]
+
+
+#ei toimi vielä
+Wait Until Cart Product Count Is
+    [Arguments]     ${target}
+    :For    ${time}     In Range    0   ${TIMEOUT}
+    \   ${product_count} =      Get Cart Product Count
+    \   ${is_on_target} =   Run Keyword And Return Status   Should Be Equal As Integers     ${product_count}    ${target}
+    \   Return From Keyword If      ${is_on_target}
+    \   Sleep   1s
+
+    Fail    msg=Cart product count was not ${target} after ${TIMEOUT} seconds.
+
+Get Cart Product Count
+    ${text} =   Run Selenium Keyword    //ngcart-summaryrer     Get Text
+    ${empty} =  Run Keyword And Return Status   Should Be Empty     ${text}
+    ${text} =   Set Variable If     ${empty}     0    ${text}
+    Log     '${text}'
+    ${count} =   Convert To Integer     ${text}
+    [return]    ${count}
+
+
+Open Product Page By Index
+    [Arguments]     ${index}
+    #latauspallot on 1 indeksissä, joten lisätään annettuun indeksiin 1
+    ${index}=   Evaluate    ${index} + 1
+    Click element   link=SELAA TUOTTEITA
+    #Wait For Angular
+    Wait Until Keyword Succeeds     20      1    Element Should Be Visible     css=div:nth-child(${index}) > div > div > a > div.border-wrap > img
+    Click element   css=div:nth-child(${index}) > div > div > a > div.border-wrap > img
+    Wait Until Element Is Visible     css=a[class*='addToCart']   #css=p[class*='currentPrice']
+    #Wait For Angular
+    ${item_price}=   Get Text    css=p[class*='currentPrice']
+    ${item_price}=      Strip Price     ${item_price}
+    ${item_name}=   Get Text    xpath=//div[@class='headerHeadingWrap']//h1
+    ${item_url}=   Get Location
+    Set Test Variable   ${item_price}     ${item_price}
+    Set Test Variable   ${item_name}     ${item_name}
+    Set Test Variable   ${item_url}     ${item_url}
+
+Add Item To Cart And Verify
+    [Arguments]     ${name}     ${logged_in}
+    Open Product Page    ${name}
+    Run Keyword And Ignore error    Select Options
+
+    Wait Until Keyword Succeeds     20      1      Click Element   css=a[class*='addToCart']
+    Click Element   css=div[class*='cartButton']
+    Wait Until Element Is Visible    xpath=//div[@class='totalWrapper']//ngcart-cart/div[4]/p       error=Shopping cart was not visible!
+    ${url_in_cart}      Get Element Attribute   //td[@class='name']//a@href
+    ${name_in_cart}      Get Text   //td[@class='name']/h5
+    ${price_in_cart}=     Get Text    css=td[class*='price']
+    ${stripped_price}=      Strip Price     ${price_in_cart}
+    Should Be Equal     ${name_in_cart}       ${item_name}
+    Should Be Equal     ${url_in_cart}       ${item_url}
+    Should Be Equal     ${item_price}       ${stripped_price}
+
+    Click Element   css=button[class*='checkoutButton']
+    ${name}=    Get Value   xpath=//div[contains(@class, 'billingCol')]/input[1]
+    ${email}=    Get Value   xpath=//div[contains(@class, 'billingCol')]/input[2]
+    ${address}=    Get Value   xpath=//div[contains(@class, 'billingCol')]/input[3]
+    ${zip}=    Get Value   xpath=//div[contains(@class, 'billingCol')]/input[4]
+    ${city}=    Get Value   xpath=//div[contains(@class, 'billingCol')]/input[5]
+    #${country}=    Get Value   xpath=//div[contains(@class, 'billingCol')]/country-selector/input
+    ${phone}=    Get Value   xpath=//div[contains(@class, 'billingCol')]/input[6]
+
+    #If Logged name_in_cart
+    Run Keyword If  ${logged_in} == True    Should Be Equal     ${name}     ${USER_FULL_NAME}
+    Run Keyword If  ${logged_in} == True    Should Be Equal     ${email}     ${USER_EMAIL}
+    Run Keyword If  ${logged_in} == True    Should Be Equal     ${address}     ${USER_ADDRESS}
+    Run Keyword If  ${logged_in} == True    Should Be Equal     ${zip}     ${USER_ZIP}
+    Run Keyword If  ${logged_in} == True    Should Be Equal     ${city}     ${USER_CITY}
+    #Run Keyword If  ${logged_in} == True    Should Be Equal     ${country}     ${USER_FULL_COUNTRY}
+    Run Keyword If  ${logged_in} == True    Should Be Equal     ${phone}     ${USER_PHONE}
+
+    #If not logged in
+    Run Keyword If  ${logged_in} == False    Should Be Equal     ${name}     \
+    Run Keyword If  ${logged_in} == False    Should Be Equal     ${email}     \
+    Run Keyword If  ${logged_in} == False    Should Be Equal     ${address}     \
+    Run Keyword If  ${logged_in} == False    Should Be Equal     ${zip}     \
+    Run Keyword If  ${logged_in} == False    Should Be Equal     ${city}     \
+    #Run Keyword If  ${logged_in} == False    Should Be Equal     ${country}     \
+    Run Keyword If  ${logged_in} == False    Should Be Equal     ${name}     \
+
+Select Options
+    ${options_count}=   Get Matching Xpath Count    xpath=//div[@class="optionsMenu"]//select[contains(@class, 'ng-invalid-required')]
+    Run Keyword If  ${options_count} >= 1   Select From List By index   xpath=//div[@class="optionsMenu"]//select[contains(@class, 'ng-invalid-required')]      1
+
+    ${options_count}=   Get Matching Xpath Count    xpath=//input[@data-ng-change="cartItem.optionSelectionChange()"]
+    Run Keyword If  ${options_count} >= 1   Select Checkbox   xpath=//input[@data-ng-change="cartItem.optionSelectionChange()"]
+
+
+Finalize Checkout
+    [Arguments]     ${logged_in}
+
+    Run Keyword If  ${logged_in} == False    Input Text   xpath=//div[contains(@class, 'billingCol')]/input[1]  ${USER_FULL_NAME}
+    Run Keyword If  ${logged_in} == False    Input Text   xpath=//div[contains(@class, 'billingCol')]/input[2]  ${USER_EMAIL}
+    Run Keyword If  ${logged_in} == False    Input Text   xpath=//div[contains(@class, 'billingCol')]/input[3]  ${USER_ADDRESS}
+    Run Keyword If  ${logged_in} == False    Input Text   xpath=//div[contains(@class, 'billingCol')]/input[4]  ${USER_ZIP}
+    Run Keyword If  ${logged_in} == False    Input Text   xpath=//div[contains(@class, 'billingCol')]/input[5]  ${USER_CITY}
+    Run Keyword If  ${logged_in} == False    Input Text   xpath=//div[contains(@class, 'billingCol')]/input[6]  ${USER_PHONE}
+
+    Checkbox Should Not Be Selected     css=input[class*='termsAccepted']
+    Select Checkbox   css=input[class*='termsAccepted']
+    ${total_price}=     Get Text    css=p[class*='finalSum']
+    ${total_price}=     Strip price     ${total_price}
+    Click Element   css=button[class*='confirmPayment']
+
+    Wait Until Page contains    ${USER_FULL_NAME}   10
+    Page Should Contain    ${USER_ADDRESS}
+    Page Should Contain    ${USER_ZIP}
+    Page Should Contain    ${USER_CITY}
+    ${page_source}=     Get Source
+    ${total_price}=     Dot To Comma    ${total_price}
+    Should contain      ${page_source}      <td>${total_price} €</td>
+
+    Click element   xpath=//*[@id="content"]/center/div/center/div/div[1]/form/span/input
+    Click Element   css=input[name='Ok']
+    Input Password  xpath=/html/body/table/tbody/tr[2]/td/div/div/form/table/tbody/tr/td[2]/input   1234
+    Click Element   css=input[value='Vahvista']
+
+    Open Mailbox    server=mail.shellit.org     user=${USER_EMAIL}     password=${USER_PASSWORD}
+    ${latest}=      Wait for Mail   fromEmail=orders@aarium.com      toEmail=${USER_EMAIL}    timeout=150
+    ${email_body}=  Get Email body  ${latest}
+    ${dotted_price}=    Comma To Dot  ${total_price}
+    Should Contain  ${email_body}   Tilaus yhteens&auml;: ${dotted_price}&euro;
+    Mark as Read
+    Close Mailbox
+
+
+    Wait Until Keyword Succeeds     20      1       Location Should Be      http://dev.sb.aarium.com/tilaus-onnistui
+
+
+    #tilausvahvistus asiakkaalle
+    #tilaus muotoilijalle
+
